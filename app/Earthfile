@@ -1,0 +1,32 @@
+FROM python:3
+WORKDIR /app
+
+deps:
+    RUN pip install wheel
+    COPY requirements.txt ./
+    RUN pip wheel -r requirements.txt --wheel-dir=wheels
+    SAVE ARTIFACT wheels /wheels
+
+test-deps:
+    FROM +deps
+    COPY requirements.dev.txt ./
+    RUN pip wheel -r requirements.dev.txt --wheel-dir=wheels
+    SAVE ARTIFACT wheels /wheels
+
+test:
+    FROM +test-deps
+    COPY . /app
+    RUN python3 -m pytest
+
+build:
+    FROM +deps
+    COPY . /app
+    SAVE ARTIFACT src /app
+
+docker:
+    COPY +deps/wheels wheels
+    COPY +build/src src
+    COPY requirements.txt ./
+    RUN pip install --no-index --find-links=wheels -r requirements.txt
+    ENTRYPOINT ["python3", "/app/app.py"]
+    SAVE IMAGE python-example:latest
